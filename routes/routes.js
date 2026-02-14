@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const { authMiddleware, adminMiddleware } = require("../middleware/Auth");
 const User = require("../models/User");
+const { updateProfile } = require("../controllers/userController");
+
 
 // Import Controllers
 const {
@@ -79,6 +81,10 @@ router.get("/leaderboard", async (req, res) => {
     });
   }
 });
+
+//Update Profile
+router.put("/update-profile", authMiddleware, updateProfile);
+
 
 
 module.exports = router;
