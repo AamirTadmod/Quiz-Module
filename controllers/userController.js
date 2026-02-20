@@ -5,9 +5,22 @@ const bcrypt = require("bcrypt");
 // ✅
 exports.register = async (req, res) => {
   try {
-    const { email, username, password, confirmPassword } = req.body;
+    const {
+  firstName,
+  lastName,
+  email,
+  username,
+  password,
+  confirmPassword,
+  mobileNumber,
+  organization,
+  country,
+  state,
+  profession
+} = req.body;
 
-    if (!username || !email || !password || !confirmPassword) {
+
+    if (!firstName || !lastName || !username || !email || !password || !confirmPassword) {
       return res
         .status(400)
         .json({ success: false, error: "Please fill all the fields" });
@@ -36,15 +49,37 @@ exports.register = async (req, res) => {
       });
     }
 
+    //Mobile number validation
+    if (mobileNumber && mobileNumber.trim() !== "") {
+      const mobileRegex = /^[6-9]\d{9}$/;
+
+      if (!mobileRegex.test(mobileNumber)) {
+        return res.status(400).json({
+          success: false,
+          error: "Enter valid 10 digit mobile number",
+        });
+      }
+    }
+
+
+
     const hashedPasssword = await bcrypt.hash(password, 10);
 
     // 🔒 Force role to "user"
     const user = await User.create({
-      username,
-      email,
-      password: hashedPasssword,
-      role: "user",
-    });
+    firstName,
+    lastName,
+    username,
+    email,
+    password: hashedPasssword,
+    role: "user",
+    mobileNumber,
+    organization,
+    country,
+    state,
+    profession,
+  });
+
 
     return res.status(200).json({
       success: true,
@@ -105,12 +140,20 @@ exports.login = async (req, res) => {
         token,
         user: {
           id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
           email: user.email,
           username: user.username,
           role: user.role,
           createdAt: user.createdAt,
+          mobileNumber: user.mobileNumber,
+          organization: user.organization,
+          country: user.country,
+          state: user.state,
+          profession: user.profession,
           attemptedQuizzes: user?.attemptedQuizes || [],
         },
+
       },
     });
   } catch (error) {
@@ -124,7 +167,18 @@ exports.login = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { username, email } = req.body;
+    const {
+      username,
+      email,
+      firstName,
+      lastName,
+      mobileNumber,
+      organization,
+      profession,
+      state,
+      country,
+    } = req.body;
+
 
     if (!username || !email) {
       return res.status(400).json({
@@ -161,9 +215,20 @@ exports.updateProfile = async (req, res) => {
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { username, email },
+      {
+        username,
+        email,
+        firstName,
+        lastName,
+        mobileNumber,
+        organization,
+        profession,
+        state,
+        country,
+      },
       { new: true }
     );
+
 
     return res.status(200).json({
       success: true,
@@ -174,6 +239,14 @@ exports.updateProfile = async (req, res) => {
         username: updatedUser.username,
         role: updatedUser.role,
         createdAt: updatedUser.createdAt,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        mobileNumber: updatedUser.mobileNumber,
+        organization: updatedUser.organization,
+        profession: updatedUser.profession,
+        state: updatedUser.state,
+        country: updatedUser.country,
+
         attemptedQuizzes: updatedUser?.attemptedQuizes || [],
       },
     });

@@ -3,6 +3,8 @@ const router = express.Router();
 const { authMiddleware, adminMiddleware } = require("../middleware/Auth");
 const User = require("../models/User");
 const { updateProfile } = require("../controllers/userController");
+const { getQuizLeaderboard } = require("../controllers/quizController");
+const Attempt = require("../models/Attempt");
 
 
 // Import Controllers
@@ -42,6 +44,8 @@ router.delete("/quizzes/:id", authMiddleware, adminMiddleware, deleteQuiz);
 router.get("/questions/:id", authMiddleware, getQuizQuestions);
 router.post("/questions", authMiddleware, adminMiddleware, createQuestion);
 router.put("/questions/:id", authMiddleware, adminMiddleware, updateQuestion);
+router.get("/quizzes/:id/attempts", authMiddleware, getQuizLeaderboard);
+
 router.delete(
   "/questions/:id",
   authMiddleware,
@@ -58,29 +62,63 @@ router.get("/attempts", authMiddleware, getUserAttempts);
 // 🏆 Leaderboard Route
 router.get("/leaderboard", async (req, res) => {
   try {
-    const users = await User.find({ role: "user" })
-      .select("username points attemptedQuizes badges")
-      .sort({ points: -1 });
+    const leaderboard = await Attempt.aggregate([
 
-    const leaderboard = users.map((user, index) => ({
-      rank: index + 1,
-      username: user.username,
-      points: user.points,
-      quizzesCompleted: user.attemptedQuizes.length,
-      badges: user.badges,
-    }));
+      {
+        $group: {
+          _id: "$userId",
+          totalCorrect: { $sum: "$score" },
+          totalQuestions: {
+            $sum: { $ifNull: ["$totalQuestions", 0] }
+          },
+          attempts: { $sum: 1 }
+        }
+      },
 
-    res.status(200).json({
-      success: true,
-      leaderboard,
-    });
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "user"
+        }
+      },
+      { $unwind: "$user" },
+
+      {
+        $project: {
+          username: "$user.username",
+          badges: "$user.badges",
+          attempts: 1,
+          totalCorrect: 1,
+          totalQuestions: 1,
+          accuracy: {
+            $cond: [
+              { $eq: ["$totalQuestions", 0] },
+              0,
+              {
+                $multiply: [
+                  { $divide: ["$totalCorrect", "$totalQuestions"] },
+                  100
+                ]
+              }
+            ]
+          }
+        }
+      },
+
+      { $sort: { accuracy: -1 } }
+    ]);
+
+    res.json({ success: true, leaderboard });
+
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch leaderboard",
-    });
+    console.error("LEADERBOARD ERROR:", error);
+    res.status(500).json({ success: false });
   }
 });
+
+
 
 //Update Profile
 router.put("/update-profile", authMiddleware, updateProfile);

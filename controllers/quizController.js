@@ -2,6 +2,8 @@ const Quiz = require("../models/Quiz");
 const Question = require("../models/Question");
 const Attempt = require("../models/Attempt");
 const User = require("../models/User");
+const mongoose = require("mongoose");
+
 
 // ✅
 exports.createQuiz = async (req, res) => {
@@ -167,7 +169,8 @@ exports.attemptQuiz = async (req, res) => {
 
       if (userAnswer) {
         const selectedOption = question.options.id(userAnswer.selectedOption);
-        if (selectedOption && selectedOption.isCorrect) {
+
+        if (selectedOption?.isCorrect) {
           score += 1;
         }
 
@@ -178,28 +181,47 @@ exports.attemptQuiz = async (req, res) => {
       }
     }
 
-    // Save quiz attempt
-    const attempt = new Attempt({
-      userId,
-      quizId,
-      score,
-      answers: answersArray,
-    });
-    await attempt.save();
+    const totalQuestions = questions.length;
+    const newPoints = score * 10 + 5;
 
-    // Update user data (points, quizzes, badges)
     const user = await User.findById(userId);
 
-    // Add quiz to attempted quizzes (only once)
-    if (!user.attemptedQuizes.includes(quizId)) {
-      user.attemptedQuizes.push(quizId);
+    // 🔍 CHECK IF USER ALREADY ATTEMPTED THIS QUIZ
+    const existingAttempt = await Attempt.findOne({ userId, quizId });
+
+    if (existingAttempt) {
+      // REMOVE OLD POINTS
+      const oldPoints = existingAttempt.score * 10 + 5;
+
+      user.points = Math.max(0, user.points - oldPoints);
+      user.points += newPoints;
+
+      // UPDATE ATTEMPT
+      existingAttempt.score = score;
+      existingAttempt.totalQuestions = totalQuestions;
+      existingAttempt.answers = answersArray;
+      existingAttempt.completedAt = Date.now();
+
+      await existingAttempt.save();
+
+    } else {
+      // CREATE NEW ATTEMPT
+      await Attempt.create({
+        userId,
+        quizId,
+        score,
+        totalQuestions,
+        answers: answersArray,
+      });
+
+      user.points += newPoints;
+
+      if (!user.attemptedQuizes.includes(quizId)) {
+        user.attemptedQuizes.push(quizId);
+      }
     }
 
-    // 🎯 POINTS CALCULATION
-    const pointsEarned = score * 10 + 5; // 10 per correct + 5 for attempt
-    user.points += pointsEarned;
-
-    // 🏅 BADGE LOGIC (simple)
+    // 🏅 BADGE LOGIC
     if (user.points >= 50 && !user.badges.includes("IPR Beginner")) {
       user.badges.push("IPR Beginner");
     }
@@ -208,11 +230,11 @@ exports.attemptQuiz = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Quiz attempted successfully",
+      message: "Quiz submitted successfully",
       score,
-      pointsEarned,
       totalPoints: user.points,
     });
+
   } catch (e) {
     console.error("ERROR ATTEMPTING QUIZ:", e.message);
     return res.status(500).json({
@@ -221,6 +243,8 @@ exports.attemptQuiz = async (req, res) => {
     });
   }
 };
+
+
 
 
 // ✅
@@ -284,5 +308,50 @@ exports.getQuizAttempts = async (req, res) => {
       success: false,
       error: "Internal server error",
     });
+  }
+};
+
+exports.getQuizLeaderboard = async (req, res) => {
+  try {
+    const quizId = req.params.id;
+
+    const leaderboard = await Attempt.aggregate([
+      { $match: { quizId: new mongoose.Types.ObjectId(quizId) } },
+
+      {
+        $sort: { score: -1 }
+      },
+
+      {
+        $group: {
+          _id: "$userId",
+          bestScore: { $first: "$score" }
+        }
+      },
+
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "user"
+        }
+      },
+      { $unwind: "$user" },
+
+      {
+        $project: {
+          username: "$user.username",
+          score: "$bestScore"
+        }
+      },
+
+      { $sort: { score: -1 } }
+    ]);
+
+    res.json({ success: true, data: leaderboard });
+
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 };
