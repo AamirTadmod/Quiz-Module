@@ -87,12 +87,18 @@ router.get("/leaderboard", async (req, res) => {
         $project: {
           username: "$user.username",
           badges: "$user.badges",
-          attempts: 1,
-          totalCorrect: 1,
-          totalQuestions: 1,
+          attempts: { $ifNull: ["$attempts", 1] },
+          totalCorrect: { $ifNull: ["$totalCorrect", 0] },
+          totalQuestions: { $ifNull: ["$totalQuestions", 0] },
+
           accuracy: {
             $cond: [
-              { $eq: ["$totalQuestions", 0] },
+              {
+                $eq: [
+                  { $multiply: ["$totalQuestions", "$attempts"] },
+                  0
+                ]
+              },
               0,
               {
                 $multiply: [
