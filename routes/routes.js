@@ -68,10 +68,8 @@ router.get("/leaderboard", async (req, res) => {
         $group: {
           _id: "$userId",
           totalCorrect: { $sum: "$score" },
-          totalQuestions: {
-            $sum: { $ifNull: ["$totalQuestions", 0] }
-          },
-          attempts: { $sum: 1 }
+          totalQuestions: { $sum: "$totalQuestions" },
+          attempts: { $sum: "$attemptCount" }
         }
       },
 
@@ -98,7 +96,12 @@ router.get("/leaderboard", async (req, res) => {
               0,
               {
                 $multiply: [
-                  { $divide: ["$totalCorrect", "$totalQuestions"] },
+                  {
+                    $divide: [
+                      "$totalCorrect",
+                      { $multiply: ["$totalQuestions", "$attempts"] }
+                    ]
+                  },
                   100
                 ]
               }

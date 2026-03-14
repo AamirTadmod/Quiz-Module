@@ -20,6 +20,10 @@ const attemptSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  attemptCount: {
+    type: Number,
+    default: 1
+  },
   answers: [
     {
       questionId: {

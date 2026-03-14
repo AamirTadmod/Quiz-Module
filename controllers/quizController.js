@@ -187,7 +187,16 @@ exports.attemptQuiz = async (req, res) => {
     const user = await User.findById(userId);
 
     // 🔍 CHECK IF USER ALREADY ATTEMPTED THIS QUIZ
-    const existingAttempt = await Attempt.findOne({ userId, quizId });
+    const existingAttempt = await Attempt.findOneAndUpdate(
+      { userId, quizId },
+      {
+        score,
+        totalQuestions,
+        answers: answersArray,
+        $inc: { attemptCount: 1 }
+      },
+      { upsert: true, new: true }
+    );
 
     if (existingAttempt) {
       // REMOVE OLD POINTS
@@ -222,9 +231,22 @@ exports.attemptQuiz = async (req, res) => {
     }
 
     // 🏅 BADGE LOGIC
-    if (user.points >= 50 && !user.badges.includes("IPR Beginner")) {
-      user.badges.push("IPR Beginner");
-    }
+
+    const badgeLevels = [
+      { name: "IPR Beginner", points: 50 },
+      { name: "IPR Learner", points: 150 },
+      { name: "IPR Explorer", points: 250 },
+      { name: "IPR Enthusiast", points: 350 },
+      { name: "IPR Achiever", points: 500 },
+      { name: "IPR Expert", points: 650 },
+      { name: "IPR Master", points: 800 }
+    ];
+
+    badgeLevels.forEach((badge) => {
+      if (user.points >= badge.points && !user.badges.includes(badge.name)) {
+        user.badges.push(badge.name);
+      }
+    });
 
     await user.save();
 
