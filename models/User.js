@@ -28,6 +28,19 @@ const userSchema = new mongoose.Schema(
       type: String,
     },
 
+    gender: {
+      type: String,
+      enum: ["Male", "Female", "Other"],
+    },
+
+    city: {
+      type: String,
+    },
+
+    pincode: {
+      type: String,
+    },
+
     profession: {
       type: String,
     },

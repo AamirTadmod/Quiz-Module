@@ -106,7 +106,9 @@ exports.deleteQuiz = async (req, res) => {
 // ✅
 exports.getAllQuizzes = async (req, res) => {
   try {
-    const quizzes = await Quiz.find().populate("createdBy", "username email");
+    const quizzes = await Quiz.find()
+      .populate("createdBy", "username email")
+      .sort({ createdAt: -1 });
     return res.status(200).json({
       success: true,
       data: quizzes,

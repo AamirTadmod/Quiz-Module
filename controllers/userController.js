@@ -16,7 +16,10 @@ exports.register = async (req, res) => {
   organization,
   country,
   state,
-  profession
+  profession,
+  city,
+  pincode,
+  gender
 } = req.body;
 
 
@@ -61,24 +64,37 @@ exports.register = async (req, res) => {
       }
     }
 
+    // 📍 Pincode validation
+    if (pincode && pincode.trim() !== "") {
+      const pincodeRegex = /^[1-9][0-9]{5}$/;
 
+      if (!pincodeRegex.test(pincode)) {
+        return res.status(400).json({
+          success: false,
+          error: "Pincode must be 6 digits and cannot start with 0",
+        });
+      }
+    }
 
     const hashedPasssword = await bcrypt.hash(password, 10);
 
     // 🔒 Force role to "user"
     const user = await User.create({
-    firstName,
-    lastName,
-    username,
-    email,
-    password: hashedPasssword,
-    role: "user",
-    mobileNumber,
-    organization,
-    country,
-    state,
-    profession,
-  });
+      firstName,
+      lastName,
+      username,
+      email,
+      password: hashedPasssword,
+      role: "user",
+      mobileNumber,
+      organization,
+      country,
+      state,
+      profession,
+      city,
+      pincode,
+      gender
+    });
 
 
     return res.status(200).json({
@@ -150,6 +166,9 @@ exports.login = async (req, res) => {
           organization: user.organization,
           country: user.country,
           state: user.state,
+          city: user.city,
+          pincode: user.pincode,
+          gender: user.gender,
           profession: user.profession,
           attemptedQuizzes: user?.attemptedQuizes || [],
         },
@@ -177,6 +196,9 @@ exports.updateProfile = async (req, res) => {
       profession,
       state,
       country,
+      city,
+      pincode,
+      gender
     } = req.body;
 
 
@@ -225,6 +247,9 @@ exports.updateProfile = async (req, res) => {
         profession,
         state,
         country,
+        city,
+        pincode,
+        gender
       },
       { new: true }
     );
@@ -246,6 +271,9 @@ exports.updateProfile = async (req, res) => {
         profession: updatedUser.profession,
         state: updatedUser.state,
         country: updatedUser.country,
+        city: updatedUser.city,
+        pincode: updatedUser.pincode,
+        gender: updatedUser.gender,
 
         attemptedQuizzes: updatedUser?.attemptedQuizes || [],
       },
