@@ -83,6 +83,13 @@ router.get("/leaderboard", async (req, res) => {
       },
       { $unwind: "$user" },
 
+      // ✅ ADD THIS
+      {
+        $match: {
+          "user.role": "user"
+        }
+      },
+
       {
         $project: {
           username: "$user.username",

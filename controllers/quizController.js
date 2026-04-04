@@ -362,6 +362,11 @@ exports.getQuizLeaderboard = async (req, res) => {
         }
       },
       { $unwind: "$user" },
+      {
+        $match: {
+          "user.role": "user"
+        }
+      },
 
       {
         $project: {
